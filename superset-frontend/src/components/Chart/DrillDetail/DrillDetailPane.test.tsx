@@ -186,6 +186,37 @@ test('should render the metadata bar', async () => {
   ).toBeInTheDocument();
 });
 
+test('should restrict the page size selector to 50 rows per page', async () => {
+  setupDatasetEndpoint();
+  fetchMock.post(SAMPLES_ENDPOINT, {
+    result: {
+      total_count: 100,
+      data: [
+        {
+          year: 1996,
+          na_sales: 11.27,
+          eu_sales: 8.89,
+        },
+      ],
+      colnames: ['year', 'na_sales', 'eu_sales'],
+      coltypes: [0, 0, 0],
+    },
+  });
+  await waitForRender();
+  await screen.findByRole('table');
+
+  expect(await screen.findByText('50 / page')).toBeInTheDocument();
+
+  await userEvent.click(screen.getByText('50 / page'));
+
+  const options = await screen.findAllByText('50 / page');
+  expect(options).toHaveLength(2);
+  expect(screen.queryByText('5 / page')).not.toBeInTheDocument();
+  expect(screen.queryByText('15 / page')).not.toBeInTheDocument();
+  expect(screen.queryByText('25 / page')).not.toBeInTheDocument();
+  expect(screen.queryByText('100 / page')).not.toBeInTheDocument();
+});
+
 test('should render the error', async () => {
   jest
     .spyOn(SupersetClient, 'post')
