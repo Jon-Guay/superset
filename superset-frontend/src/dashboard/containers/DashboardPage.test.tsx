@@ -226,6 +226,41 @@ test('uses theme from Redux dashboardInfo when it differs from API response (Pro
   );
 });
 
+test('does not render the dashboard subtree while Redux dashboardInfo.id is stale from a previously loaded dashboard', async () => {
+  // Regression test for the bug where, after deleting a dashboard and then
+  // navigating to a different dashboard, the previous dashboard's id was
+  // still in Redux briefly when the new dashboard data arrived. This caused
+  // child components like FaveStar to fetch /api/v1/dashboard/favorite_status
+  // for the (now deleted) previous dashboard, surfacing an error toast.
+  render(
+    <Suspense fallback="loading">
+      <DashboardPage idOrSlug="1" />
+    </Suspense>,
+    {
+      useRedux: true,
+      useRouter: true,
+      initialState: {
+        // The previous dashboard's id is still in Redux while the user
+        // navigates to dashboard 1.
+        dashboardInfo: { id: 258, metadata: {} },
+        dashboardState: { sliceIds: [] },
+        nativeFilters: { filters: {} },
+        dataMask: {},
+      },
+    },
+  );
+
+  // The suspense fallback should resolve, but the loading indicator should
+  // remain because Redux dashboardInfo.id (258) does not match the loaded
+  // dashboard's id (1) — i.e. hydrateDashboard has not yet completed for
+  // the dashboard currently being viewed.
+  await waitFor(() => {
+    expect(screen.queryByText('loading')).not.toBeInTheDocument();
+  });
+  expect(screen.getByTestId('loading-indicator')).toBeInTheDocument();
+  expect(screen.queryByTestId('dashboard-builder')).not.toBeInTheDocument();
+});
+
 test('passes null theme when Redux dashboardInfo.theme is explicitly null (theme removed)', async () => {
   render(
     <Suspense fallback="loading">

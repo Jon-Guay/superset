@@ -116,9 +116,8 @@ export const DashboardPage: FC<PageProps> = ({ idOrSlug }: PageProps) => {
   const dispatch = useDispatch();
   const history = useHistory();
   const dashboardPageId = useMemo(() => nanoid(), []);
-  const hasDashboardInfoInitiated = useSelector<RootState, boolean>(
-    ({ dashboardInfo }) =>
-      dashboardInfo && Object.keys(dashboardInfo).length > 0,
+  const reduxDashboardInfoId = useSelector<RootState, number | undefined>(
+    state => state.dashboardInfo?.id,
   );
   const reduxTheme = useSelector(
     (state: RootState) => state.dashboardInfo.theme,
@@ -138,6 +137,13 @@ export const DashboardPage: FC<PageProps> = ({ idOrSlug }: PageProps) => {
   const error = dashboardApiError || chartsApiError;
   const readyToRender = Boolean(dashboard && charts);
   const { dashboard_title, id = 0 } = dashboard || {};
+  // Only render the dashboard subtree once Redux dashboardInfo has been
+  // hydrated for the dashboard currently being loaded. Otherwise components
+  // like the header's FaveStar would briefly mount with the previously-loaded
+  // dashboard's id and fire requests against a stale (potentially deleted)
+  // dashboard.
+  const isDashboardHydratedForCurrentRoute =
+    readyToRender && reduxDashboardInfoId === id;
 
   // Get CSS from dashboardInfo (unified properties location)
   const css =
@@ -290,7 +296,7 @@ export const DashboardPage: FC<PageProps> = ({ idOrSlug }: PageProps) => {
   return (
     <>
       <Global styles={globalStyles} />
-      {readyToRender && hasDashboardInfoInitiated ? (
+      {isDashboardHydratedForCurrentRoute ? (
         <>
           <SyncDashboardState dashboardPageId={dashboardPageId} />
           <DashboardPageIdContext.Provider value={dashboardPageId}>
