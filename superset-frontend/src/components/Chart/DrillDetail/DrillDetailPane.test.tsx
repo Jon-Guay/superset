@@ -159,6 +159,38 @@ test('should render the table with results', async () => {
   ).toBeInTheDocument();
 });
 
+test('should restrict the page-size selector to 50', async () => {
+  // Server-side paging is fixed at PAGE_SIZE = 50; any other value would
+  // either let the user overshoot the last page or hide rows.
+  setupDatasetEndpoint();
+  fetchMock.post(SAMPLES_ENDPOINT, {
+    result: {
+      total_count: 51,
+      data: Array.from({ length: 50 }, (_unused, i) => ({ year: 1900 + i })),
+      colnames: ['year'],
+      coltypes: [0],
+    },
+  });
+  await waitForRender();
+  expect(await screen.findByRole('table')).toBeInTheDocument();
+
+  // Page-size selector trigger should read "50 / page" (matches defaultPageSize).
+  const sizeChanger = await screen.findByTitle('50 / page');
+  expect(sizeChanger).toBeInTheDocument();
+
+  // Opening the dropdown should reveal exactly one option: "50 / page".
+  userEvent.click(sizeChanger);
+  await waitFor(() => {
+    const optionItems = document.querySelectorAll('.ant-select-item-option');
+    expect(optionItems.length).toBeGreaterThan(0);
+  });
+  const optionItems = Array.from(
+    document.querySelectorAll('.ant-select-item-option'),
+  );
+  const optionLabels = optionItems.map(el => el.textContent);
+  expect(optionLabels).toEqual(['50 / page']);
+});
+
 test('should render the "No results" components', async () => {
   fetchWithNoData();
   setup();
