@@ -494,3 +494,95 @@ test('Default Metrics and Columns folders dont render when all metrics and colum
   expect(screen.getAllByTestId('DatasourcePanelDragOption').length).toEqual(5);
   expect(screen.getAllByTestId('datasource-panel-divider').length).toEqual(1);
 });
+
+test('Collapsing the default Metrics folder keeps the Columns folder visible', () => {
+  render(
+    <ExploreContainer>
+      <DatasourcePanel {...props} />
+      <DndMetricSelect {...metricProps} />
+    </ExploreContainer>,
+    { useRedux: true, useDnd: true },
+  );
+
+  expect(screen.getByText('Metrics')).toBeInTheDocument();
+  expect(screen.getByText('Columns')).toBeInTheDocument();
+  metrics.forEach(metric => {
+    expect(screen.getByText(metric.metric_name)).toBeInTheDocument();
+  });
+  columns.forEach(col => {
+    expect(screen.getByText(col.column_name)).toBeInTheDocument();
+  });
+
+  userEvent.click(screen.getByText('Metrics'));
+
+  metrics.forEach(metric => {
+    expect(screen.queryByText(metric.metric_name)).not.toBeInTheDocument();
+  });
+
+  expect(screen.getByText('Metrics')).toBeInTheDocument();
+  expect(screen.getByText('Columns')).toBeInTheDocument();
+  columns.forEach(col => {
+    expect(screen.getByText(col.column_name)).toBeInTheDocument();
+  });
+});
+
+test('Collapsed state is preserved when folders change but stale IDs are dropped', () => {
+  const { rerender } = render(
+    <ExploreContainer>
+      <DatasourcePanel {...propsWithFolders} />
+      <DndMetricSelect {...metricProps} />
+    </ExploreContainer>,
+    { useRedux: true, useDnd: true },
+  );
+
+  expect(screen.getByText('Test folder')).toBeInTheDocument();
+  expect(screen.getByText('Second test folder')).toBeInTheDocument();
+
+  userEvent.click(screen.getByText('Second test folder'));
+  expect(screen.queryByText(columns[0].column_name)).not.toBeInTheDocument();
+
+  const datasourceWithRenamedFolders: IDatasource = {
+    ...datasourceWithFolders,
+    folders: [
+      {
+        name: 'Test folder',
+        type: FoldersEditorItemType.Folder,
+        uuid: '1',
+        children: [],
+      },
+      {
+        name: 'Different folder',
+        type: FoldersEditorItemType.Folder,
+        uuid: '3',
+        children: columns.map(c => ({
+          type: FoldersEditorItemType.Column,
+          uuid: c.uuid,
+          name: c.column_name,
+        })),
+      },
+    ],
+  };
+  const renamedProps = {
+    ...propsWithFolders,
+    datasource: datasourceWithRenamedFolders,
+    controls: {
+      ...propsWithFolders.controls,
+      datasource: {
+        ...propsWithFolders.controls.datasource,
+        datasource: datasourceWithRenamedFolders,
+      },
+    },
+  };
+
+  rerender(
+    <ExploreContainer>
+      <DatasourcePanel {...renamedProps} />
+      <DndMetricSelect {...metricProps} />
+    </ExploreContainer>,
+  );
+
+  expect(screen.getByText('Different folder')).toBeInTheDocument();
+  columns.forEach(col => {
+    expect(screen.getByText(col.column_name)).toBeInTheDocument();
+  });
+});

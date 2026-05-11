@@ -122,6 +122,34 @@ export const DatasourceItems = ({
     });
   }, []);
 
+  // Keep collapsedFolderIds in sync with the current folders so that a stale
+  // ID (e.g. left over from a prior datasource or filtered-out folder) cannot
+  // accidentally match an unrelated folder on a future render and cause its
+  // contents — like the Columns section — to be hidden.
+  useEffect(() => {
+    const currentFolderIds = new Set(folders.map(folder => folder.id));
+    setCollapsedFolderIds(prevIds => {
+      const nextIds = new Set<string>();
+      prevIds.forEach(id => {
+        if (currentFolderIds.has(id)) {
+          nextIds.add(id);
+        }
+      });
+      folders.forEach(folder => {
+        if (folder.isCollapsed && !nextIds.has(folder.id)) {
+          nextIds.add(folder.id);
+        }
+      });
+      if (
+        nextIds.size === prevIds.size &&
+        [...nextIds].every(id => prevIds.has(id))
+      ) {
+        return prevIds;
+      }
+      return nextIds;
+    });
+  }, [folders]);
+
   useEffect(() => {
     // reset the list cache when flattenedItems length changes to recalculate the heights
     listRef.current?.resetAfterIndex(0);
