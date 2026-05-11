@@ -246,6 +246,23 @@ const RawTableView = ({
     }
   }, [initialSortBy, onServerPagination, serverPagination, sortBy]);
 
+  // Reset to the first page when the current page exceeds the available pages
+  // (e.g., when a parent filters `data` down to fewer pages than `pageIndex`).
+  // Without this, antd Pagination receives a `current` greater than the
+  // implied total pages and surfaces an error.
+  const pageCount = Math.ceil(data.length / effectivePageSize);
+  useEffect(() => {
+    if (
+      withPagination &&
+      !serverPagination &&
+      !loading &&
+      pageIndex > pageCount - 1 &&
+      pageCount > 0
+    ) {
+      setPageIndex(0);
+    }
+  }, [withPagination, serverPagination, loading, pageIndex, pageCount]);
+
   return (
     <TableViewStyles {...props} ref={tableRef}>
       <TableCollection
