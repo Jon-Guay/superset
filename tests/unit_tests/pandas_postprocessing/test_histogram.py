@@ -14,7 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import warnings
+
 from pandas import DataFrame
+from pandas.errors import SettingWithCopyWarning
 
 from superset.utils.pandas_postprocessing import histogram
 
@@ -207,3 +210,21 @@ def test_histogram_with_no_groupby_and_all_null_values():
 
     result = histogram(data_with_no_groupby_and_all_nulls, "a", [], bins)
     assert result.empty
+
+
+def test_histogram_does_not_emit_setting_with_copy_warning():
+    """
+    Regression test: histogram should not emit a pandas SettingWithCopyWarning
+    when assigning to ``df[column]`` after ``dropna`` removes rows from the
+    input DataFrame.
+    """
+    df = DataFrame(
+        {
+            "group": ["A", "A", "B", "B", "A", "A", "B", "B", "A", "A"],
+            "a": [1, 2, 3, None, 5, 6, 7, 8, 9, 10],
+        }
+    )
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", SettingWithCopyWarning)
+        histogram(df, "a", ["group"], bins)
+        histogram(df, "a", [], bins)
