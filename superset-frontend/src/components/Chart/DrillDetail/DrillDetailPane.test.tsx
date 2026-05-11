@@ -130,6 +130,38 @@ test('should render', async () => {
   expect(container).toBeInTheDocument();
 });
 
+test('should pass pageSizeOptions of [50] to the Table', async () => {
+  // Build a dataset with 60 rows so pagination is rendered (more than one page)
+  setupDatasetEndpoint();
+  const rows = Array.from({ length: 60 }, (_, i) => ({
+    year: 1990 + i,
+    na_sales: i,
+    eu_sales: i,
+  }));
+  fetchMock.post(SAMPLES_ENDPOINT, {
+    result: {
+      total_count: rows.length,
+      data: rows,
+      colnames: ['year', 'na_sales', 'eu_sales'],
+      coltypes: [0, 0, 0],
+    },
+  });
+
+  await waitForRender();
+
+  // Open the page-size dropdown
+  const sizeChanger = await screen.findByText('50 / page');
+  await userEvent.click(sizeChanger);
+
+  // Only the "50 / page" option should be available
+  const options = await screen.findAllByText('50 / page');
+  expect(options.length).toBeGreaterThanOrEqual(1);
+  expect(screen.queryByText('5 / page')).not.toBeInTheDocument();
+  expect(screen.queryByText('15 / page')).not.toBeInTheDocument();
+  expect(screen.queryByText('25 / page')).not.toBeInTheDocument();
+  expect(screen.queryByText('100 / page')).not.toBeInTheDocument();
+});
+
 test('should render loading indicator', async () => {
   fetchWithData();
   setup();
