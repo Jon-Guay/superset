@@ -48,8 +48,10 @@ def histogram(
     if groupby is None:
         groupby = []
 
-    # drop empty values from the target column
-    df = df.dropna(subset=[column])
+    # drop empty values from the target column; copy to avoid mutating
+    # the caller's DataFrame and to silence SettingWithCopyWarning when
+    # assigning the coerced column below
+    df = df.dropna(subset=[column]).copy()
     if df.empty:
         return df
 

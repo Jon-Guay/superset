@@ -14,6 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import warnings
+
+import pandas as pd
 from pandas import DataFrame
 
 from superset.utils.pandas_postprocessing import histogram
@@ -207,3 +210,37 @@ def test_histogram_with_no_groupby_and_all_null_values():
 
     result = histogram(data_with_no_groupby_and_all_nulls, "a", [], bins)
     assert result.empty
+
+
+def test_histogram_does_not_emit_setting_with_copy_warning():
+    # Regression test for https://github.com/apache/superset/issues/36530:
+    # ``dropna`` returned a view of the input frame, so assigning the
+    # coerced numeric column back to ``df`` raised pandas'
+    # ``SettingWithCopyWarning`` in the application logs.
+    data_with_some_nulls = DataFrame(
+        {
+            "group": ["A", "A", "B", "B", "A"],
+            "a": [1, 2, 3, None, 5],
+        }
+    )
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        histogram(data_with_some_nulls, "a", ["group"], bins)
+    setting_with_copy = [
+        w for w in caught if issubclass(w.category, pd.errors.SettingWithCopyWarning)
+    ]
+    assert setting_with_copy == []
+
+
+def test_histogram_does_not_mutate_input_dataframe():
+    # ``histogram`` should not modify the caller's DataFrame.
+    original = DataFrame(
+        {
+            "group": ["A", "A", "B", "B"],
+            "a": ["1", "2", "3", "4"],
+        }
+    )
+    snapshot = original.copy()
+    histogram(original, "a", ["group"], bins)
+    assert original.equals(snapshot)
+    assert original["a"].tolist() == ["1", "2", "3", "4"]
