@@ -371,3 +371,43 @@ test('should handle large datasets with pagination', () => {
   expect(screen.getByRole('list')).toBeInTheDocument();
   expect(screen.getByText('1-10 of 100')).toBeInTheDocument();
 });
+
+test('should reset to first page when data reduces below current page', async () => {
+  // Start with 30 items, 10 per page = 3 pages
+  const initialData = Array.from({ length: 30 }, (_, i) => ({
+    id: i,
+    age: 20 + i,
+    name: `Person ${i}`,
+  }));
+
+  const props = {
+    ...mockedProps,
+    data: initialData,
+    pageSize: 10,
+  };
+
+  const { rerender } = render(<TableView {...props} />);
+
+  // Navigate to page 3 (last page) by clicking Next twice
+  await userEvent.click(screen.getByTitle('Next Page'));
+  await userEvent.click(screen.getByTitle('Next Page'));
+
+  await waitFor(() => {
+    expect(screen.getByText('21-30 of 30')).toBeInTheDocument();
+  });
+
+  // Reduce data to only 5 items (fewer than the current page would show).
+  // This simulates an upstream filter such as a search box trimming the
+  // dataset below the page that the user was previously viewing.
+  const reducedData = initialData.slice(0, 5);
+  rerender(<TableView {...props} data={reducedData} />);
+
+  // Should reset to page 1 and render the reduced rows. Without the reset,
+  // `pageIndex` would still point to page 3 and the slice would produce an
+  // empty page, so the rows from `reducedData` would never be visible.
+  await waitFor(() => {
+    expect(screen.getByText('Person 0')).toBeInTheDocument();
+  });
+  expect(screen.getByText('Person 4')).toBeInTheDocument();
+  expect(screen.getByText('1-5 of 5')).toBeInTheDocument();
+});
