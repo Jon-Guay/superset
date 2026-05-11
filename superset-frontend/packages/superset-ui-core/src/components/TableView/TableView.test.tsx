@@ -350,6 +350,65 @@ test('should handle totalCount of 0 correctly', () => {
   expect(screen.queryByRole('list')).not.toBeInTheDocument();
 });
 
+test('should reset to first page when data shrinks below current page', async () => {
+  const initialData = Array.from({ length: 30 }, (_, i) => ({
+    id: i,
+    age: 20 + i,
+    name: `Person ${i}`,
+  }));
+
+  const initialProps = {
+    ...mockedProps,
+    data: initialData,
+    pageSize: 10,
+    initialPageIndex: 2,
+  };
+
+  const { rerender } = render(<TableView {...initialProps} />);
+
+  expect(screen.getByText('Person 20')).toBeInTheDocument();
+  expect(screen.getByText('21-30 of 30')).toBeInTheDocument();
+
+  // Simulate an external filter (e.g. search) that removes most rows so the
+  // current page is no longer valid. Without the reset, the table would
+  // render an empty page with stale pagination state.
+  rerender(<TableView {...initialProps} data={initialData.slice(0, 5)} />);
+
+  await waitFor(() => {
+    expect(screen.getByText('1-5 of 5')).toBeInTheDocument();
+  });
+  expect(screen.getByText('Person 0')).toBeInTheDocument();
+});
+
+test('should not reset page when data shrinks to empty', async () => {
+  const initialData = Array.from({ length: 30 }, (_, i) => ({
+    id: i,
+    age: 20 + i,
+    name: `Person ${i}`,
+  }));
+
+  const initialProps = {
+    ...mockedProps,
+    data: initialData,
+    pageSize: 10,
+    initialPageIndex: 2,
+    noDataText: 'No data here',
+  };
+
+  const { rerender } = render(<TableView {...initialProps} />);
+
+  expect(screen.getByText('Person 20')).toBeInTheDocument();
+
+  // When the filter removes all rows we leave pageIndex alone and let the
+  // empty state render in place of the pagination.
+  rerender(<TableView {...initialProps} data={[]} />);
+
+  await waitFor(() => {
+    expect(screen.getByText('No data here')).toBeInTheDocument();
+  });
+  expect(screen.queryByRole('list')).not.toBeInTheDocument();
+});
+
 test('should handle large datasets with pagination', () => {
   const largeDataset = Array.from({ length: 100 }, (_, i) => ({
     id: i,

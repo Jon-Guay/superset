@@ -156,6 +156,30 @@ const RawTableView = ({
     return rows.slice(start, start + effectivePageSize);
   }, [withPagination, serverPagination, rows, pageIndex, effectivePageSize]);
 
+  // Reset to the first page when the underlying data shrinks below the
+  // current page (for example, when an external search filter reduces the
+  // number of rows below pageIndex * pageSize). Without this, the table can
+  // render an empty page with stale pagination state.
+  useEffect(() => {
+    if (
+      withPagination &&
+      !serverPagination &&
+      !loading &&
+      pageIndex > 0 &&
+      rows.length > 0 &&
+      pageIndex > Math.ceil(rows.length / effectivePageSize) - 1
+    ) {
+      setPageIndex(0);
+    }
+  }, [
+    withPagination,
+    serverPagination,
+    loading,
+    pageIndex,
+    rows.length,
+    effectivePageSize,
+  ]);
+
   const EmptyWrapperComponent = useMemo(() => {
     switch (emptyWrapperType) {
       case EmptyWrapperType.Small:
