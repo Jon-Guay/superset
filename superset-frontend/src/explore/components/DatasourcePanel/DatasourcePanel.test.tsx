@@ -422,6 +422,41 @@ test('Collapse folders', () => {
   expect(screen.getByText(metrics[0].metric_name)).toBeInTheDocument();
 });
 
+test('Collapsing the Metrics section keeps the Columns section visible', async () => {
+  render(
+    <ExploreContainer>
+      <DatasourcePanel {...props} />
+      <DndMetricSelect {...metricProps} />
+    </ExploreContainer>,
+    {
+      useRedux: true,
+      useDnd: true,
+    },
+  );
+
+  expect(await screen.findByText('Metrics')).toBeInTheDocument();
+  expect(screen.getByText('Columns')).toBeInTheDocument();
+  columns.forEach(col =>
+    expect(screen.getByText(col.column_name)).toBeInTheDocument(),
+  );
+  metrics.forEach(metric =>
+    expect(screen.getByText(metric.metric_name)).toBeInTheDocument(),
+  );
+
+  // Collapse the Metrics section via its header toggle button.
+  userEvent.click(screen.getByText('Metrics'));
+
+  // Metric items hide, but the Columns section and its items remain visible.
+  metrics.forEach(metric =>
+    expect(screen.queryByText(metric.metric_name)).not.toBeInTheDocument(),
+  );
+  expect(screen.getByText('Metrics')).toBeInTheDocument();
+  expect(screen.getByText('Columns')).toBeInTheDocument();
+  columns.forEach(col =>
+    expect(screen.getByText(col.column_name)).toBeInTheDocument(),
+  );
+});
+
 test('Default Metrics and Columns folders dont render when all metrics and columns are assigned to custom folders', () => {
   const datasourceWithFullFolders: IDatasource = {
     ...datasource,

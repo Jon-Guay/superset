@@ -99,11 +99,48 @@ export const DatasourceItems = ({
   folders,
 }: DatasourceItemsProps) => {
   const listRef = useRef<List>(null);
-  const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
+  const [storedCollapsedFolderIds, setCollapsedFolderIds] = useState<
+    Set<string>
+  >(
     new Set(
       folders.filter(folder => folder.isCollapsed).map(folder => folder.id),
     ),
   );
+
+  // Drop folder IDs from the collapsed set that no longer exist in the current
+  // folders structure. Without this, a stale ID (e.g. a default folder UUID
+  // left over from a prior datasource or search refresh) can match an
+  // unrelated folder on a future render and cause it to appear collapsed,
+  // hiding its contents.
+  const collapsedFolderIds = useMemo(() => {
+    const validIds = new Set<string>();
+    const collect = (list: Folder[]) => {
+      list.forEach(folder => {
+        validIds.add(folder.id);
+        if (folder.subFolders?.length) {
+          collect(folder.subFolders);
+        }
+      });
+    };
+    collect(folders);
+
+    let allValid = true;
+    storedCollapsedFolderIds.forEach(id => {
+      if (!validIds.has(id)) {
+        allValid = false;
+      }
+    });
+    if (allValid) {
+      return storedCollapsedFolderIds;
+    }
+    const filtered = new Set<string>();
+    storedCollapsedFolderIds.forEach(id => {
+      if (validIds.has(id)) {
+        filtered.add(id);
+      }
+    });
+    return filtered;
+  }, [folders, storedCollapsedFolderIds]);
 
   const { flattenedItems, folderMap } = useMemo(
     () => flattenFolderStructure(folders, collapsedFolderIds),
