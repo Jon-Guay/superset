@@ -14,6 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import warnings
+
+import pandas as pd
 from pandas import DataFrame
 
 from superset.utils.pandas_postprocessing import histogram
@@ -207,3 +210,26 @@ def test_histogram_with_no_groupby_and_all_null_values():
 
     result = histogram(data_with_no_groupby_and_all_nulls, "a", [], bins)
     assert result.empty
+
+
+def test_histogram_does_not_emit_setting_with_copy_warning():
+    """
+    Regression test for https://github.com/apache/superset/issues/36530.
+
+    A DataFrame derived from a slice (e.g. column selection) of a parent
+    DataFrame should not produce a pandas SettingWithCopyWarning when passed
+    to ``histogram``.
+    """
+    parent = DataFrame(
+        {
+            "a": [1, None, 3, 4, 5, 6, 7, 8, 9, 10],
+            "b": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+        }
+    )
+    sliced = parent[["a", "b"]]
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", pd.errors.SettingWithCopyWarning)
+        result = histogram(sliced, "a", [], bins)
+
+    assert result.shape == (1, bins)
