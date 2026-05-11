@@ -116,9 +116,8 @@ export const DashboardPage: FC<PageProps> = ({ idOrSlug }: PageProps) => {
   const dispatch = useDispatch();
   const history = useHistory();
   const dashboardPageId = useMemo(() => nanoid(), []);
-  const hasDashboardInfoInitiated = useSelector<RootState, boolean>(
-    ({ dashboardInfo }) =>
-      dashboardInfo && Object.keys(dashboardInfo).length > 0,
+  const reduxDashboardInfoId = useSelector<RootState, number | undefined>(
+    ({ dashboardInfo }) => dashboardInfo?.id,
   );
   const reduxTheme = useSelector(
     (state: RootState) => state.dashboardInfo.theme,
@@ -138,6 +137,14 @@ export const DashboardPage: FC<PageProps> = ({ idOrSlug }: PageProps) => {
   const error = dashboardApiError || chartsApiError;
   const readyToRender = Boolean(dashboard && charts);
   const { dashboard_title, id = 0 } = dashboard || {};
+  // Guard against stale dashboardInfo from a previously-loaded dashboard
+  // by waiting until the redux store has been hydrated with the current
+  // dashboard's data before rendering the dashboard builder. Without this
+  // check, child components may fire requests using the previous
+  // dashboard's id (e.g. /api/v1/dashboard/favorite_status/, which
+  // returns an error if that dashboard was deleted).
+  const isHydratedForCurrentDashboard =
+    readyToRender && reduxDashboardInfoId === id;
 
   // Get CSS from dashboardInfo (unified properties location)
   const css =
@@ -290,7 +297,7 @@ export const DashboardPage: FC<PageProps> = ({ idOrSlug }: PageProps) => {
   return (
     <>
       <Global styles={globalStyles} />
-      {readyToRender && hasDashboardInfoInitiated ? (
+      {isHydratedForCurrentDashboard ? (
         <>
           <SyncDashboardState dashboardPageId={dashboardPageId} />
           <DashboardPageIdContext.Provider value={dashboardPageId}>

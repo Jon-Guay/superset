@@ -226,6 +226,56 @@ test('uses theme from Redux dashboardInfo when it differs from API response (Pro
   );
 });
 
+test('waits to render DashboardBuilder until Redux dashboardInfo.id matches the loaded dashboard', async () => {
+  // Simulate navigating from a previously-loaded (e.g. deleted) dashboard
+  // whose id is still in the Redux store. Until the new dashboard is hydrated,
+  // DashboardBuilder must not render -- otherwise children fire requests
+  // against the stale id (e.g. /api/v1/dashboard/favorite_status/).
+  render(
+    <Suspense fallback="loading">
+      <DashboardPage idOrSlug="1" />
+    </Suspense>,
+    {
+      useRedux: true,
+      useRouter: true,
+      initialState: {
+        dashboardInfo: { id: 258, metadata: {} },
+        dashboardState: { sliceIds: [] },
+        nativeFilters: { filters: {} },
+        dataMask: {},
+      },
+    },
+  );
+
+  await waitFor(() => {
+    expect(screen.queryByText('loading')).not.toBeInTheDocument();
+  });
+
+  expect(screen.queryByText('DashboardBuilder')).not.toBeInTheDocument();
+});
+
+test('renders DashboardBuilder when Redux dashboardInfo.id matches the loaded dashboard', async () => {
+  render(
+    <Suspense fallback="loading">
+      <DashboardPage idOrSlug="1" />
+    </Suspense>,
+    {
+      useRedux: true,
+      useRouter: true,
+      initialState: {
+        dashboardInfo: { id: 1, metadata: {} },
+        dashboardState: { sliceIds: [] },
+        nativeFilters: { filters: {} },
+        dataMask: {},
+      },
+    },
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText('DashboardBuilder')).toBeInTheDocument();
+  });
+});
+
 test('passes null theme when Redux dashboardInfo.theme is explicitly null (theme removed)', async () => {
   render(
     <Suspense fallback="loading">
