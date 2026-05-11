@@ -93,6 +93,19 @@ interface DatasourceItemsProps {
   height: number;
   folders: Folder[];
 }
+const collectFolderIds = (
+  folders: Folder[],
+  ids: Set<string> = new Set(),
+): Set<string> => {
+  folders.forEach(folder => {
+    ids.add(folder.id);
+    if (folder.subFolders?.length) {
+      collectFolderIds(folder.subFolders, ids);
+    }
+  });
+  return ids;
+};
+
 export const DatasourceItems = ({
   width,
   height,
@@ -105,9 +118,33 @@ export const DatasourceItems = ({
     ),
   );
 
+  // Drop folder IDs that no longer exist in the current folders structure.
+  // Without this, a stale ID (e.g. a default folder UUID left over from a
+  // prior datasource or folder-config change) can match an unrelated folder
+  // on a future render and cause it to appear collapsed, hiding its contents.
+  const effectiveCollapsedFolderIds = useMemo(() => {
+    const validIds = collectFolderIds(folders);
+    let allValid = true;
+    collapsedFolderIds.forEach(id => {
+      if (!validIds.has(id)) {
+        allValid = false;
+      }
+    });
+    if (allValid) {
+      return collapsedFolderIds;
+    }
+    const filtered = new Set<string>();
+    collapsedFolderIds.forEach(id => {
+      if (validIds.has(id)) {
+        filtered.add(id);
+      }
+    });
+    return filtered;
+  }, [folders, collapsedFolderIds]);
+
   const { flattenedItems, folderMap } = useMemo(
-    () => flattenFolderStructure(folders, collapsedFolderIds),
-    [folders, collapsedFolderIds],
+    () => flattenFolderStructure(folders, effectiveCollapsedFolderIds),
+    [folders, effectiveCollapsedFolderIds],
   );
 
   const handleToggleCollapse = useCallback((folderId: string) => {
@@ -138,14 +175,14 @@ export const DatasourceItems = ({
       folderMap,
       width,
       onToggleCollapse: handleToggleCollapse,
-      collapsedFolderIds,
+      collapsedFolderIds: effectiveCollapsedFolderIds,
     }),
     [
       flattenedItems,
       folderMap,
       width,
       handleToggleCollapse,
-      collapsedFolderIds,
+      effectiveCollapsedFolderIds,
     ],
   );
 

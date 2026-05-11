@@ -389,6 +389,35 @@ test('Renders with custom folders', () => {
   expect(screen.getAllByTestId('datasource-panel-divider').length).toEqual(3);
 });
 
+test('Collapsing the default Metrics section keeps the Columns section visible', () => {
+  render(
+    <ExploreContainer>
+      <DatasourcePanel {...props} />
+      <DndMetricSelect {...metricProps} />
+    </ExploreContainer>,
+    { useRedux: true, useDnd: true },
+  );
+
+  // Precondition: both default sections are rendered with their items
+  expect(screen.getByText('Metrics')).toBeInTheDocument();
+  expect(screen.getByText('Columns')).toBeInTheDocument();
+  expect(screen.getByText(metrics[0].metric_name)).toBeInTheDocument();
+  expect(screen.getByText(columns[0].column_name)).toBeInTheDocument();
+
+  // Collapse the Metrics section by clicking its header
+  userEvent.click(screen.getByText('Metrics'));
+
+  // Metrics items are hidden but the header remains
+  expect(screen.getByText('Metrics')).toBeInTheDocument();
+  expect(screen.queryByText(metrics[0].metric_name)).not.toBeInTheDocument();
+
+  // The Columns section must remain fully visible (regression for #37444)
+  expect(screen.getByText('Columns')).toBeInTheDocument();
+  columns.forEach(col =>
+    expect(screen.getByText(col.column_name)).toBeInTheDocument(),
+  );
+});
+
 test('Collapse folders', () => {
   render(
     <ExploreContainer>
